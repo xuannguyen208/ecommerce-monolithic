@@ -1,0 +1,77 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Role {
+  id    Int    @id @default(autoincrement())
+  name  String @unique
+
+  users User[]
+}
+
+model User {
+  id         Int      @id @default(autoincrement())
+  username   String   @unique
+  email      String   @unique
+  password   String
+  roleId     Int
+  createdAt  DateTime @default(now())
+
+  role       Role        @relation(fields: [roleId], references: [id])
+  membership MemberShip?
+  orders     Order[]
+}
+
+model MemberShip {
+  id     Int @id @default(autoincrement())
+  userId Int @unique
+  score  Int @default(10)
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Product {
+  id       Int     @id @default(autoincrement())
+  name     String
+  price    Decimal @db.Decimal(12, 2)
+  quantity Int
+
+  orderDetails OrderDetail[]
+}
+
+model Order {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  orderDate DateTime @default(now())
+  total     Decimal  @default(0) @db.Decimal(12, 2)
+  status    String   @default("PENDING")
+
+  user         User          @relation(fields: [userId], references: [id])
+  orderDetails OrderDetail[]
+  shipment     Shipment?
+}
+
+model OrderDetail {
+  id        Int     @id @default(autoincrement())
+  orderId   Int
+  productId Int
+  quantity  Int
+  price     Decimal @db.Decimal(12, 2)
+
+  order   Order   @relation(fields: [orderId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+}
+
+model Shipment {
+  id           Int      @id @default(autoincrement())
+  orderId      Int      @unique
+  status       String   @default("PENDING")
+  shipmentDate DateTime?
+
+  order Order @relation(fields: [orderId], references: [id])
+}
