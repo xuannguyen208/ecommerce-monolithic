@@ -5,7 +5,7 @@ const jwt = require("jsonwebtoken");
 // API đăng ký tài khoản
 const register = async (req, res) => {
   try {
-    const { username, email, password } = req.body;
+    const { username, email, password } = req.body || {};
 
     // Kiểm tra dữ liệu đầu vào
     if (

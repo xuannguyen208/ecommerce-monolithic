@@ -43,7 +43,7 @@ const getProductById = async (req, res) => {
 // Thêm sản phẩm
 const createProduct = async (req, res) => {
   try {
-    const { name, price, quantity } = req.body;
+    const { name, price, quantity } = req.body || {};
 
     if (
       typeof name !== "string" ||
@@ -80,7 +80,7 @@ const createProduct = async (req, res) => {
 const updateProduct = async (req, res) => {
   try {
     const id = Number(req.params.id);
-    const { name, price, quantity } = req.body;
+    const { name, price, quantity } = req.body || {};
 
     if (!Number.isInteger(id) || id <= 0) {
       return res.status(400).json({ message: "ID khong hop le" });
