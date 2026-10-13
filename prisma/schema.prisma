@@ -8,70 +8,68 @@ datasource db {
 }
 
 model Role {
-  id    Int    @id @default(autoincrement())
-  name  String @unique
+  roleid   Int    @id @default(autoincrement())
+  rolename String @unique @db.VarChar(50)
+
+  users User[]
+}
+
+model MemberShip {
+  mid   Int    @id @default(autoincrement())
+  mname String @db.VarChar(50)
+  score Int    @default(10)
 
   users User[]
 }
 
 model User {
-  id         Int      @id @default(autoincrement())
-  username   String   @unique
-  email      String   @unique
-  password   String
-  roleId     Int
-  createdAt  DateTime @default(now())
+  uid      Int    @id @default(autoincrement())
+  username String @unique @db.VarChar(50)
+  fullname String @db.VarChar(100)
+  password String @db.VarChar(255)
+  roleid   Int
+  mid      Int
 
-  role       Role        @relation(fields: [roleId], references: [id])
-  membership MemberShip?
+  role       Role       @relation(fields: [roleid], references: [roleid])
+  membership MemberShip @relation(fields: [mid], references: [mid])
   orders     Order[]
 }
 
-model MemberShip {
-  id     Int @id @default(autoincrement())
-  userId Int @unique
-  score  Int @default(10)
-
-  user User @relation(fields: [userId], references: [id])
-}
-
 model Product {
-  id       Int     @id @default(autoincrement())
-  name     String
-  price    Decimal @db.Decimal(12, 2)
+  pid      Int     @id @default(autoincrement())
+  pname    String  @db.VarChar(100)
+  price    Decimal @db.Decimal(10, 2)
   quantity Int
 
   orderDetails OrderDetail[]
 }
 
 model Order {
-  id        Int      @id @default(autoincrement())
-  userId    Int
-  orderDate DateTime @default(now())
-  total     Decimal  @default(0) @db.Decimal(12, 2)
-  status    String   @default("PENDING")
+  oid      Int      @id @default(autoincrement())
+  uid      Int
+  createat DateTime @default(now())
 
-  user         User          @relation(fields: [userId], references: [id])
+  user         User          @relation(fields: [uid], references: [uid])
   orderDetails OrderDetail[]
-  shipment     Shipment?
+  shipments    Shipment[]
 }
 
 model OrderDetail {
-  id        Int     @id @default(autoincrement())
-  orderId   Int
-  productId Int
-  quantity  Int
-  price     Decimal @db.Decimal(12, 2)
+  oid        Int
+  pid        Int
+  qty        Int
+  unit_price Decimal @db.Decimal(10, 2)
 
-  order   Order   @relation(fields: [orderId], references: [id])
-  product Product @relation(fields: [productId], references: [id])
+  order   Order   @relation(fields: [oid], references: [oid])
+  product Product @relation(fields: [pid], references: [pid])
+
+  @@id([oid, pid])
 }
 
 model Shipment {
-  id           Int      @id @default(autoincrement())
-  orderId      Int      @unique
-  status       String   @default("PENDING")
-  shipmentDate DateTime?
+  shipid Int    @id @default(autoincrement())
+  oid    Int
+  status String @default("PENDING") @db.VarChar(50)
 
-  order Order @relation(fields: [orderId], references: [id])
+  order Order @relation(fields: [oid], references: [oid])
 }

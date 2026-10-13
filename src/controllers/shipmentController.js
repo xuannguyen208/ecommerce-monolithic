@@ -1,58 +1,60 @@
 const prisma = require("../config/prisma");
 
-// Xem thông tin giao hàng của đơn hàng
+const validId = (value) =>
+  Number.isInteger(value) &&
+  value > 0 &&
+  value <= 2147483647;
+
+// Xem các Shipment của một đơn hàng thuộc người đăng nhập
 const getShipment = async (req, res) => {
   try {
-    const orderId = Number(req.params.orderId);
+    const oid = Number(req.params.orderId);
 
-    if (!Number.isInteger(orderId) || orderId <= 0) {
+    if (!validId(oid)) {
       return res.status(400).json({
-        message: "Order ID khong hop le"
+        message: "ID don hang khong hop le"
       });
     }
 
-    const shipment = await prisma.shipment.findFirst({
+    const order = await prisma.order.findFirst({
       where: {
-        orderId,
-        order: {
-          userId: req.user.id
-        }
+        oid,
+        uid: req.user.id
       },
-      include: {
-        order: true
+      select: {
+        oid: true,
+        createat: true,
+        shipments: {
+          orderBy: { shipid: "asc" }
+        }
       }
     });
 
-    if (!shipment) {
+    if (!order) {
       return res.status(404).json({
-        message: "Khong tim thay thong tin giao hang"
+        message: "Khong tim thay don hang"
       });
     }
 
-    return res.status(200).json(shipment);
+    return res.status(200).json(order);
   } catch (error) {
-    console.error(error);
+    console.error("Get shipment error:", error);
+
     return res.status(500).json({
       message: "Loi lay thong tin giao hang"
     });
   }
 };
 
-// Cập nhật trạng thái giao hàng - chỉ admin
+// Admin cập nhật một Shipment cụ thể
 const updateShipment = async (req, res) => {
   try {
-    if (req.user.role !== "admin") {
-      return res.status(403).json({
-        message: "Chi admin duoc cap nhat giao hang"
-      });
-    }
-
-    const orderId = Number(req.params.orderId);
+    const shipid = Number(req.params.shipid);
     const { status } = req.body || {};
 
-    if (!Number.isInteger(orderId) || orderId <= 0) {
+    if (!validId(shipid)) {
       return res.status(400).json({
-        message: "Order ID khong hop le"
+        message: "ID shipment khong hop le"
       });
     }
 
@@ -64,18 +66,13 @@ const updateShipment = async (req, res) => {
 
     if (!allowedStatuses.includes(status)) {
       return res.status(400).json({
-        message: "Trang thai giao hang khong hop le"
+        message: "Status phai la PENDING, SHIPPING hoac DELIVERED"
       });
     }
 
     const shipment = await prisma.shipment.update({
-      where: { orderId },
-      data: {
-        status,
-        shipmentDate: status === "DELIVERED"
-          ? new Date()
-          : null
-      }
+      where: { shipid },
+      data: { status }
     });
 
     return res.status(200).json({
@@ -85,11 +82,12 @@ const updateShipment = async (req, res) => {
   } catch (error) {
     if (error.code === "P2025") {
       return res.status(404).json({
-        message: "Khong tim thay thong tin giao hang"
+        message: "Khong tim thay shipment"
       });
     }
 
-    console.error(error);
+    console.error("Update shipment error:", error);
+
     return res.status(500).json({
       message: "Loi cap nhat giao hang"
     });

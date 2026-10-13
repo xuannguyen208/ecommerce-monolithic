@@ -2,95 +2,93 @@ const prisma = require("../config/prisma");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
-// API đăng ký tài khoản
+// Đăng ký: role normal, membership có score 10
 const register = async (req, res) => {
   try {
-    const { username, email, password } = req.body || {};
+    const { username, fullname, password } = req.body || {};
 
-    // Kiểm tra dữ liệu đầu vào
     if (
       typeof username !== "string" ||
-      typeof email !== "string" ||
-      typeof password !== "string" ||
       !username.trim() ||
-      !email.trim() ||
+      username.trim().length > 50 ||
+      typeof fullname !== "string" ||
+      !fullname.trim() ||
+      fullname.trim().length > 100 ||
+      typeof password !== "string" ||
       password.length < 8
     ) {
       return res.status(400).json({
-        message: "Username, email khong duoc rong va password phai co it nhat 8 ky tu"
+        message:
+          "Username tu 1-50 ky tu, fullname tu 1-100 ky tu, password it nhat 8 ky tu"
       });
     }
 
-    // Kiểm tra tài khoản đã tồn tại
-    const existingUser = await prisma.user.findFirst({
-      where: {
-        OR: [
-          { username: username.trim() },
-          { email: email.trim().toLowerCase() }
-        ]
-      }
+    const existingUser = await prisma.user.findUnique({
+      where: { username: username.trim() }
     });
 
     if (existingUser) {
       return res.status(409).json({
-        message: "Username hoac email da ton tai"
+        message: "Username da ton tai"
       });
     }
 
-    // Lấy quyền normal
     const normalRole = await prisma.role.findUnique({
-      where: { name: "normal" }
+      where: { rolename: "normal" }
     });
 
-    if (!normalRole) {
+    const membership = await prisma.memberShip.findFirst({
+      where: {
+        mname: "normal",
+        score: 10
+      },
+      orderBy: { mid: "asc" }
+    });
+
+    if (!normalRole || !membership) {
       return res.status(500).json({
-        message: "Chua co role normal. Hay chay seed.js"
+        message: "Chua co role hoac membership mac dinh. Hay chay seed"
       });
     }
 
-    // Mã hóa mật khẩu
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Tạo tài khoản và membership trong một transaction
-    const newUser = await prisma.user.create({
+    const user = await prisma.user.create({
       data: {
         username: username.trim(),
-        email: email.trim().toLowerCase(),
+        fullname: fullname.trim(),
         password: hashedPassword,
-        roleId: normalRole.id,
-        membership: {
-          create: {
-            score: 10
-          }
-        }
+        roleid: normalRole.roleid,
+        mid: membership.mid
       },
       select: {
-        id: true,
+        uid: true,
         username: true,
-        email: true,
-        createdAt: true,
+        fullname: true,
         role: {
-          select: { name: true }
+          select: { rolename: true }
         },
         membership: {
-          select: { score: true }
+          select: {
+            mname: true,
+            score: true
+          }
         }
       }
     });
 
     return res.status(201).json({
-      message: "Dang ky tai khoan thanh cong",
-      user: newUser
+      message: "Dang ky thanh cong",
+      user
     });
-
   } catch (error) {
-    console.error("Register error:", error);
-
     if (error.code === "P2002") {
       return res.status(409).json({
-        message: "Username hoac email da ton tai"
+        message: "Username da ton tai"
       });
     }
+
+    console.error("Register error:", error);
 
     return res.status(500).json({
       message: "Loi he thong"
@@ -98,15 +96,15 @@ const register = async (req, res) => {
   }
 };
 
-// API đăng nhập tài khoản
+// Đăng nhập và trả JWT
 const login = async (req, res) => {
   try {
     const { username, password } = req.body || {};
 
     if (
       typeof username !== "string" ||
-      typeof password !== "string" ||
       !username.trim() ||
+      typeof password !== "string" ||
       !password
     ) {
       return res.status(400).json({
@@ -114,7 +112,6 @@ const login = async (req, res) => {
       });
     }
 
-    // Tìm người dùng
     const user = await prisma.user.findUnique({
       where: { username: username.trim() },
       include: {
@@ -129,13 +126,12 @@ const login = async (req, res) => {
       });
     }
 
-    // Kiểm tra mật khẩu đã mã hóa
-    const isValid = await bcrypt.compare(
+    const validPassword = await bcrypt.compare(
       password,
       user.password
     );
 
-    if (!isValid) {
+    if (!validPassword) {
       return res.status(401).json({
         message: "Sai tai khoan hoac mat khau"
       });
@@ -147,11 +143,10 @@ const login = async (req, res) => {
       });
     }
 
-    // Tạo JWT Token
     const token = jwt.sign(
       {
-        userId: user.id,
-        role: user.role.name
+        userId: user.uid,
+        role: user.role.rolename
       },
       process.env.JWT_SECRET,
       {
@@ -164,14 +159,14 @@ const login = async (req, res) => {
       message: "Dang nhap thanh cong",
       token,
       user: {
-        id: user.id,
+        uid: user.uid,
         username: user.username,
-        email: user.email,
-        role: user.role.name,
-        score: user.membership?.score ?? null
+        fullname: user.fullname,
+        role: user.role.rolename,
+        membership: user.membership.mname,
+        score: user.membership.score
       }
     });
-
   } catch (error) {
     console.error("Login error:", error);
 

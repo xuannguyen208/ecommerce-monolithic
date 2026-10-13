@@ -1,35 +1,48 @@
-
 require("dotenv").config();
 
 const prisma = require("../src/config/prisma");
 const bcrypt = require("bcryptjs");
 
 async function main() {
-  const adminRole = await prisma.role.findUnique({
-    where: { name: "admin" }
-  });
-
-  if (!adminRole) {
-    throw new Error("Chua co role admin. Hay chay seed.js");
-  }
-
-  // Kiem tra tai khoan admin da ton tai chua
   const existing = await prisma.user.findUnique({
-    where: { username: "admin" }
+    where: { username: "admin" },
+    include: { role: true }
   });
 
-  // Neu da ton tai thi khong doi mat khau
   if (existing) {
-    console.log("Tai khoan admin da ton tai. Khong thay doi mat khau.");
+    if (existing.role.rolename !== "admin") {
+      throw new Error(
+        "Username admin da ton tai nhung khong co quyen admin"
+      );
+    }
+
+    console.log("Tai khoan admin da ton tai. Giu nguyen mat khau.");
     return;
   }
 
-  // Chi can mat khau khoi tao khi tao admin moi
+  const adminRole = await prisma.role.findUnique({
+    where: { rolename: "admin" }
+  });
+
+  const membership = await prisma.memberShip.findFirst({
+    where: {
+      mname: "normal",
+      score: 10
+    },
+    orderBy: { mid: "asc" }
+  });
+
+  if (!adminRole || !membership) {
+    throw new Error(
+      "Chua co role hoac membership mac dinh. Hay chay seed truoc"
+    );
+  }
+
   const password = process.env.ADMIN_INITIAL_PASSWORD;
 
   if (!password || password.length < 12) {
     throw new Error(
-      "Hay dat ADMIN_INITIAL_PASSWORD it nhat 12 ky tu trong .env"
+      "ADMIN_INITIAL_PASSWORD trong .env phai co it nhat 12 ky tu"
     );
   }
 
@@ -38,19 +51,23 @@ async function main() {
   const admin = await prisma.user.create({
     data: {
       username: "admin",
-      email: "admin@example.com",
+      fullname: "Quan tri vien",
       password: hashedPassword,
-      roleId: adminRole.id,
-      membership: {
-        create: { score: 10 }
-      }
+      roleid: adminRole.roleid,
+      mid: membership.mid
     },
     select: {
-      id: true,
+      uid: true,
       username: true,
-      email: true,
+      fullname: true,
       role: {
-        select: { name: true }
+        select: { rolename: true }
+      },
+      membership: {
+        select: {
+          mname: true,
+          score: true
+        }
       }
     }
   });
@@ -60,7 +77,7 @@ async function main() {
 }
 
 main()
-  .catch(error => {
+  .catch((error) => {
     console.error(error.message);
     process.exitCode = 1;
   })

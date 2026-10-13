@@ -27,4 +27,4 @@ ENV PORT=3000
 
 EXPOSE 3000
 
-CMD ["node", "server.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node prisma/seed.js && exec node server.js"]

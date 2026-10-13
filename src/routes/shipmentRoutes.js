@@ -6,14 +6,18 @@ const {
 } = require("../controllers/shipmentController");
 
 const {
-  authenticate
+  authenticate,
+  requireAdmin
 } = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
 router.use(authenticate);
 
+// Xem Shipment theo mã đơn hàng
 router.get("/:orderId", getShipment);
-router.put("/:orderId", updateShipment);
+
+// Cập nhật theo mã Shipment, chỉ dành cho admin
+router.put("/:shipid", requireAdmin, updateShipment);
 
 module.exports = router;

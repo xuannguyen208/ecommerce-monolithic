@@ -1,26 +1,41 @@
 require("dotenv").config();
 
-const { PrismaClient } = require("@prisma/client");
-
-const prisma = new PrismaClient();
+const prisma = require("../src/config/prisma");
 
 async function main() {
-  const normalRole = await prisma.role.upsert({
-    where: { name: "normal" },
-    update: {},
-    create: { name: "normal" }
+  await prisma.$transaction(async (tx) => {
+    const normalRole = await tx.role.upsert({
+      where: { rolename: "normal" },
+      update: {},
+      create: { rolename: "normal" }
+    });
+
+    const adminRole = await tx.role.upsert({
+      where: { rolename: "admin" },
+      update: {},
+      create: { rolename: "admin" }
+    });
+
+    let membership = await tx.memberShip.findFirst({
+      where: {
+        mname: "normal",
+        score: 10
+      }
+    });
+
+    if (!membership) {
+      membership = await tx.memberShip.create({
+        data: {
+          mname: "normal",
+          score: 10
+        }
+      });
+    }
+
+    console.log("Role normal:", normalRole);
+    console.log("Role admin:", adminRole);
+    console.log("MemberShip mac dinh:", membership);
   });
-
-  const adminRole = await prisma.role.upsert({
-    where: { name: "admin" },
-    update: {},
-    create: { name: "admin" }
-  });
-
-  console.log("Tao Role thanh cong!");
-
-  console.log("Normal:", normalRole);
-  console.log("Admin:", adminRole);
 }
 
 main()

@@ -1,30 +1,52 @@
 const prisma = require("../config/prisma");
 
+const validId = (value) =>
+  Number.isInteger(value) && value > 0 && value <= 2147483647;
+
+const validName = (value) =>
+  typeof value === "string" &&
+  value.trim().length > 0 &&
+  value.trim().length <= 100;
+
+const validPrice = (value) =>
+  Number.isFinite(value) &&
+  value > 0 &&
+  value <= 99999999.99;
+
+const validQuantity = (value) =>
+  Number.isInteger(value) &&
+  value >= 0 &&
+  value <= 2147483647;
+
 // Xem danh sách sản phẩm
 const getProducts = async (req, res) => {
   try {
     const products = await prisma.product.findMany({
-      orderBy: { id: "asc" }
+      orderBy: { pid: "asc" }
     });
 
-    res.status(200).json(products);
+    return res.status(200).json(products);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Loi lay san pham" });
+    return res.status(500).json({
+      message: "Loi lay danh sach san pham"
+    });
   }
 };
 
 // Xem chi tiết sản phẩm
 const getProductById = async (req, res) => {
   try {
-    const id = Number(req.params.id);
+    const pid = Number(req.params.id);
 
-    if (!Number.isInteger(id) || id <= 0) {
-      return res.status(400).json({ message: "ID khong hop le" });
+    if (!validId(pid)) {
+      return res.status(400).json({
+        message: "ID san pham khong hop le"
+      });
     }
 
     const product = await prisma.product.findUnique({
-      where: { id }
+      where: { pid }
     });
 
     if (!product) {
@@ -33,63 +55,67 @@ const getProductById = async (req, res) => {
       });
     }
 
-    res.status(200).json(product);
+    return res.status(200).json(product);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Loi he thong" });
+    return res.status(500).json({
+      message: "Loi lay chi tiet san pham"
+    });
   }
 };
 
 // Thêm sản phẩm
 const createProduct = async (req, res) => {
   try {
-    const { name, price, quantity } = req.body || {};
+    const { pname, price, quantity } = req.body || {};
 
     if (
-      typeof name !== "string" ||
-      !name.trim() ||
-      !Number.isFinite(price) ||
-      price <= 0 ||
-      !Number.isInteger(quantity) ||
-      quantity < 0
+      !validName(pname) ||
+      !validPrice(price) ||
+      !validQuantity(quantity)
     ) {
       return res.status(400).json({
-        message: "Thong tin san pham khong hop le"
+        message:
+          "Ten san pham tu 1-100 ky tu, gia phai duong va khong vuot 99999999.99, so luong la so nguyen khong am trong pham vi INT"
       });
     }
 
     const product = await prisma.product.create({
       data: {
-        name: name.trim(),
+        pname: pname.trim(),
         price,
         quantity
       }
     });
 
-    res.status(201).json({
+    return res.status(201).json({
       message: "Them san pham thanh cong",
       product
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Loi them san pham" });
+    return res.status(500).json({
+      message: "Loi them san pham"
+    });
   }
 };
 
 // Cập nhật sản phẩm
 const updateProduct = async (req, res) => {
   try {
-    const id = Number(req.params.id);
-    const { name, price, quantity } = req.body || {};
+    const pid = Number(req.params.id);
+    const { pname, price, quantity } = req.body || {};
 
-    if (!Number.isInteger(id) || id <= 0) {
-      return res.status(400).json({ message: "ID khong hop le" });
+    if (!validId(pid)) {
+      return res.status(400).json({
+        message: "ID san pham khong hop le"
+      });
     }
 
     if (
-      (name !== undefined && (typeof name !== "string" || !name.trim())) ||
-      (price !== undefined && (!Number.isFinite(price) || price <= 0)) ||
-      (quantity !== undefined && (!Number.isInteger(quantity) || quantity < 0))
+      (pname !== undefined && !validName(pname)) ||
+      (price !== undefined && !validPrice(price)) ||
+      (quantity !== undefined && !validQuantity(quantity))
     ) {
       return res.status(400).json({
         message: "Du lieu cap nhat khong hop le"
@@ -97,7 +123,8 @@ const updateProduct = async (req, res) => {
     }
 
     const data = {};
-    if (name !== undefined) data.name = name.trim();
+
+    if (pname !== undefined) data.pname = pname.trim();
     if (price !== undefined) data.price = price;
     if (quantity !== undefined) data.quantity = quantity;
 
@@ -108,11 +135,11 @@ const updateProduct = async (req, res) => {
     }
 
     const product = await prisma.product.update({
-      where: { id },
+      where: { pid },
       data
     });
 
-    res.status(200).json({
+    return res.status(200).json({
       message: "Cap nhat san pham thanh cong",
       product
     });
@@ -124,24 +151,28 @@ const updateProduct = async (req, res) => {
     }
 
     console.error(error);
-    res.status(500).json({ message: "Loi cap nhat san pham" });
+    return res.status(500).json({
+      message: "Loi cap nhat san pham"
+    });
   }
 };
 
 // Xóa sản phẩm
 const deleteProduct = async (req, res) => {
   try {
-    const id = Number(req.params.id);
+    const pid = Number(req.params.id);
 
-    if (!Number.isInteger(id) || id <= 0) {
-      return res.status(400).json({ message: "ID khong hop le" });
+    if (!validId(pid)) {
+      return res.status(400).json({
+        message: "ID san pham khong hop le"
+      });
     }
 
     await prisma.product.delete({
-      where: { id }
+      where: { pid }
     });
 
-    res.status(200).json({
+    return res.status(200).json({
       message: "Xoa san pham thanh cong"
     });
   } catch (error) {
@@ -158,7 +189,9 @@ const deleteProduct = async (req, res) => {
     }
 
     console.error(error);
-    res.status(500).json({ message: "Loi xoa san pham" });
+    return res.status(500).json({
+      message: "Loi xoa san pham"
+    });
   }
 };
 
